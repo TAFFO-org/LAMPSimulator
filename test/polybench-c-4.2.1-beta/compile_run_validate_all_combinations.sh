@@ -15,9 +15,9 @@ for mantissa_opt_cvt in $mantissa_opts; do
           i=$(( i + 1 ))
           ./compile.sh $mant_opt || exit $?
           ./run.sh || exit $?
-          echo *** >> results-out/_all_combination.txt
+          echo '***' >> results-out/_all_combination.txt
           echo $mant_opt >> results-out/_all_combination.txt
-          echo *** >> results-out/_all_combination.txt
+          echo '***' >> results-out/_all_combination.txt
           ./validate.py >> results-out/_all_combination.txt || exit $?
         done
       done
