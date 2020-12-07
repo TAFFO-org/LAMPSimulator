@@ -5,21 +5,21 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGKILL
 SCRIPTPATH=$(dirname "$BASH_SOURCE")
 cd "$SCRIPTPATH"
 
-TIMEOUT='timeout'
+export TIMEOUT='timeout'
 if [[ -z $(which $TIMEOUT) ]]; then
-  TIMEOUT='gtimeout'
+  export TIMEOUT='gtimeout'
 fi
 if [[ ! ( -z $(which $TIMEOUT) ) ]]; then
-  TIMEOUT="$TIMEOUT 10"
+  export TIMEOUT="$TIMEOUT 10"
 else
   printf 'warning: timeout command not found\n'
-  TIMEOUT=''
+  export TIMEOUT=''
 fi
 
-TASKSET=""
+export TASKSET=""
 which taskset > /dev/null
 if [ $? -eq 0 ]; then
-        TASKSET="taskset -c 0 "
+  export TASKSET="taskset -c 0 "
 fi
 
 STACKSIZE='unlimited'
@@ -48,18 +48,32 @@ run_one()
     $TASKSET $fix_out 2> /dev/null >> $datadir/$benchname.time.txt || return $?
   done
 }
+export -f run_one
+
+run_one_wrapper()
+{
+  bench=$1
+  #printf '[....] %s' "$bench"
+  run_one "$bench" ./results-out $TIMES
+  bpid_fc=$?
+  if [[ $bpid_fc == 0 ]]; then
+    bpid_fc=' ok '
+  fi
+  printf '[%4s] %s\n' "$bpid_fc" "$bench"
+}
+export -f run_one_wrapper
 
 
-ONLY='.*'
-TIMES=1
+export ONLY='.*'
+export TIMES=1
 
 for arg; do
   case $arg in
     --only=*)
-      ONLY="${arg#*=}"
+      export ONLY="${arg#*=}"
       ;;
     --times=*)
-      TIMES=$((${arg#*=}))
+      export TIMES=$((${arg#*=}))
       ;;
     *)
       echo Unrecognized option $arg
@@ -69,21 +83,21 @@ done
 
 mkdir -p results-out
 
-all_benchs=$(cat ./utilities/benchmark_list)
-skipped_all=1
-for bench in $all_benchs; do
-  if [[ "$bench" =~ $ONLY ]]; then
-    skipped_all=0
-    printf '[....] %s' "$bench"
-    run_one "$bench" ./results-out $TIMES
-    bpid_fc=$?
-    if [[ $bpid_fc == 0 ]]; then
-      bpid_fc=' ok '
+gen_todo_list()
+{
+  all_benchs=$(cat ./utilities/benchmark_list)
+  skipped_all=1
+  for bench in $all_benchs; do
+    if [[ "$bench" =~ $ONLY ]]; then
+      skipped_all=0
+      echo run_one_wrapper "$bench"
     fi
-    printf '\033[1G[%4s] %s\n' "$bpid_fc" "$bench"
-  fi
-done
+  done
 
-if [[ $skipped_all -eq 1 ]]; then
-  echo 'warning: you specified to skip all tests'
-fi
+  if [[ $skipped_all -eq 1 ]]; then
+    echo 'warning: you specified to skip all tests'
+  fi
+}
+
+gen_todo_list | parallel
+
