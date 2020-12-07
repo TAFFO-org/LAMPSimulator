@@ -16,7 +16,7 @@
 
 #define DEBUG_TYPE "lamp-simulator"
 
-llvm::cl::opt<int> SimMantissaSize("mantSize", llvm::cl::value_desc("bits"),
+llvm::cl::opt<int> SimMantissaSize("mantissa", llvm::cl::value_desc("bits"),
     llvm::cl::desc("Size of the mantissa in bits"), llvm::cl::init(8));
 
 namespace lamp {
