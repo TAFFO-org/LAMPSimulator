@@ -18,10 +18,22 @@
 
 llvm::cl::opt<int> SimMantissaSize("mantissa", llvm::cl::value_desc("bits"),
     llvm::cl::desc("Size of the mantissa in bits"), llvm::cl::init(8));
+    
+llvm::cl::opt<int> SimCvtMantissaSize("cvt-mant", llvm::cl::value_desc("bits"),
+  llvm::cl::desc("Size of the FCvt unit mantissa in bits"), llvm::cl::init(0));
+llvm::cl::opt<int> SimAddMantissaSize("add-mant", llvm::cl::value_desc("bits"),
+  llvm::cl::desc("Size of the FAdd mantissa in bits"), llvm::cl::init(0));
+llvm::cl::opt<int> SimSubMantissaSize("sub-mant", llvm::cl::value_desc("bits"),
+  llvm::cl::desc("Size of the FSub mantissa in bits"), llvm::cl::init(0));
+llvm::cl::opt<int> SimMulMantissaSize("mul-mant", llvm::cl::value_desc("bits"),
+  llvm::cl::desc("Size of the FMul mantissa in bits"), llvm::cl::init(0));
+llvm::cl::opt<int> SimDivMantissaSize("div-mant", llvm::cl::value_desc("bits"),
+  llvm::cl::desc("Size of the FDiv mantissa in bits"), llvm::cl::init(0));
 
 namespace lamp {
 
 class LAMPSimulator : public llvm::FunctionPass {
+  int simulatedMantissaSize(llvm::Instruction& I);
   void visit(llvm::Instruction& I);
   
 public:

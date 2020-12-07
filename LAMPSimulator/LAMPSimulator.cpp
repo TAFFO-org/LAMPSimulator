@@ -33,6 +33,34 @@ bool LAMPSimulator::runOnFunction(Function &F) {
 }
 
 
+int LAMPSimulator::simulatedMantissaSize(Instruction& I) {
+  int Res = 0;
+  
+  switch (I.getOpcode()) {
+    case Instruction::FAdd:
+      Res = SimAddMantissaSize;
+      break;
+    case Instruction::FSub:
+      Res = SimSubMantissaSize;
+      break;
+    case Instruction::FMul:
+      Res = SimMulMantissaSize;
+      break;
+    case Instruction::FDiv:
+      Res = SimDivMantissaSize;
+      break;
+    case Instruction::FPExt:
+    case Instruction::FPTrunc:
+    case Instruction::SIToFP:
+    case Instruction::UIToFP:
+      Res = SimCvtMantissaSize;
+      break;
+  }
+  
+  return Res == 0 ? SimMantissaSize : Res;
+}
+
+
 void LAMPSimulator::visit(Instruction& I) {
   Instruction *IClone = I.clone();
   IClone->insertAfter(&I);
@@ -45,7 +73,7 @@ void LAMPSimulator::visit(Instruction& I) {
   uint64_t SizeOfFloat = OrigFloatType->getPrimitiveSizeInBits().getFixedSize();
   uint64_t OldMantissaSize = OrigFloatType->getFPMantissaWidth();
   assert(OldMantissaSize > 0 && "strange float types not supported");
-  int64_t Mask = (int64_t)(-1) << (OldMantissaSize - SimMantissaSize);
+  int64_t Mask = (int64_t)(-1) << (OldMantissaSize - simulatedMantissaSize(I));
   
   Type *TempIntType = Type::getIntNTy(
       I.getContext(), OrigFloatType->getPrimitiveSizeInBits());
