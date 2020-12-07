@@ -39,6 +39,7 @@ void LAMPSimulator::visit(Instruction& I) {
   IClone->setName(I.getName());
   
   Type *OrigFloatType = I.getType();
+  // TODO: handle vectors
   assert(OrigFloatType->isFloatingPointTy() && "type of instruction not float");
   
   uint64_t SizeOfFloat = OrigFloatType->getPrimitiveSizeInBits().getFixedSize();
