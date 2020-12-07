@@ -72,6 +72,10 @@ compile_one()
     -o build/"$benchname"_lamp \
     build/"$benchname"_lamp.ll \
     ./utilities/polybench.c \
+    -I"$benchdir" \
+    -I./utilities \
+    -I./ \
+    $xparams \
     -O3 \
     -lm
 }
