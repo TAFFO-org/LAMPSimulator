@@ -1,0 +1,142 @@
+#!/bin/bash
+
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM SIGKILL
+
+SCRIPTPATH=$(dirname "$BASH_SOURCE")
+cd "$SCRIPTPATH"
+
+TIMEOUT='timeout'
+if [[ -z $(which $TIMEOUT) ]]; then
+  TIMEOUT='gtimeout'
+fi
+if [[ ! ( -z $(which $TIMEOUT) ) ]]; then
+  TIMEOUT="$TIMEOUT 120"
+else
+  printf 'warning: timeout command not found\n'
+  TIMEOUT=''
+fi
+
+if [[ -z $LLVM_DIR ]]; then
+  echo -e '\033[33m'"Warning"'\033[39m'" using default llvm/clang";
+else
+  llvmbin="$LLVM_DIR/bin/";
+  CLANG=$llvmbin/clang
+  if [[ $(uname -s) == 'Darwin' ]]; then
+    CLANG="xcrun $CLANG"
+  fi
+fi
+if [[ -z "$OPT" ]]; then OPT=${llvmbin}opt; fi
+
+if [[ -z $LAMPSIM ]]; then
+  echo -e '\031[33m'"Error"'\033[39m'" Set LAMPSIM to the path to LAMPSimulator.so";
+fi
+
+
+compile_one()
+{
+  benchpath=$1
+  xparams=$2
+  benchdir=$(dirname $benchpath)
+  benchname=$(basename $benchdir)
+  
+  $CLANG \
+    -O3 \
+    -o build/"$benchname"_normal \
+    "$benchpath" \
+    ./utilities/polybench.c \
+    -I"$benchdir" \
+    -I./utilities \
+    -I./ \
+    $xparams \
+    -lm
+  
+  $CLANG \
+    -O1 \
+    -S -emit-llvm \
+    -o build/"$benchname"_normal.ll \
+    "$benchpath" \
+    -I"$benchdir" \
+    -I./utilities \
+    -I./ \
+    $xparams
+  $OPT \
+    -S \
+    -load $LAMPSIM \
+    -lampsim \
+    -mantissa $MANTISSA \
+    -O3 \
+    build/"$benchname"_normal.ll \
+    -o build/"$benchname"_lamp.ll \
+      2> build/${benchname}_lamp.log || return $?
+  $CLANG \
+    -o build/"$benchname"_lamp \
+    build/"$benchname"_lamp.ll \
+    ./utilities/polybench.c \
+    -O3 \
+    -lm
+}
+
+
+D_MINI_DATASET="MINI_DATASET"
+D_SMALL_DATASET="SMALL_DATASET"
+D_STANDARD_DATASET="MEDIUM_DATASET"
+D_LARGE_DATASET="LARGE_DATASET"
+D_EXTRALARGE_DATASET="EXTRALARGE_DATASET"
+D_DATA_TYPE='DATA_TYPE_IS_FLOAT'
+ONLY='.*'
+MANTISSA='8'
+D_CONF="CONF_GOOD"
+RUN_METRICS=0
+ERRORPROP='-enable-err'
+
+for arg; do
+  case $arg in
+    64bit)
+      D_DATA_TYPE='DATA_TYPE_IS_DOUBLE'
+      ;;
+    [A-Z]*_DATASET)
+      D_MINI_DATASET=$arg
+      D_SMALL_DATASET=$arg
+      D_STANDARD_DATASET=$arg
+      D_LARGE_DATASET=$arg
+      D_EXTRALARGE_DATASET=$arg
+      ;;
+    CONF_[A-Z]*)
+      D_CONF=$arg
+      ;;
+    --only=*)
+      ONLY="${arg#*=}"
+      ;;
+    --mantissa=*)
+      MANTISSA="${arg#*=}"
+      ;;
+    *)
+      echo Unrecognized option $arg
+      exit 1
+  esac
+done
+
+mkdir -p build
+rm -f build.log
+
+all_benchs=$(cat ./utilities/benchmark_list)
+skipped_all=1
+for bench in $all_benchs; do
+  if [[ "$bench" =~ $ONLY ]]; then
+    skipped_all=0
+    printf '[....] %s' "$bench"
+    compile_one "$bench" \
+      "-DPOLYBENCH_TIME -DPOLYBENCH_DUMP_ARRAYS -DPOLYBENCH_STACK_ARRAYS \
+      -D$D_CONF -D$D_STANDARD_DATASET -D$D_DATA_TYPE"
+    bpid_fc=$?
+    if [[ $bpid_fc == 0 ]]; then
+      bpid_fc=' ok '
+    fi
+    printf '\033[1G[%4s] %s\n' "$bpid_fc" "$bench"
+  fi
+done
+
+if [[ $skipped_all -eq 1 ]]; then
+  echo 'warning: you specified to skip all tests'
+fi
+
