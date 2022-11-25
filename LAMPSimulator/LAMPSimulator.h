@@ -60,8 +60,8 @@ extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginIn
 {
   return {
           LLVM_PLUGIN_API_VERSION,
-          "Taffo",
-          "0.3",
+          "LAMPSimulator",
+          "0.1",
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                     [](StringRef Name, FunctionPassManager &PM, ArrayRef<PassBuilder::PipelineElement>) {
