@@ -5,9 +5,9 @@ using namespace llvm;
 using namespace lamp;
 
 
-char LAMPSimulator::ID = 0;
+char LegacyLAMPSimulator::ID = 0;
 
-static RegisterPass<LAMPSimulator> X(
+static RegisterPass<LegacyLAMPSimulator> X(
         "lampsim",
         "LAMP mantissa simulation pass",
         true /* Does not only look at CFG */,
@@ -90,4 +90,9 @@ void LAMPSimulator::visit(Instruction& I) {
   I.deleteValue();
 }
 
+llvm::PreservedAnalyses LAMPSimulator::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
+  bool Changed =  runOnFunction(F);
 
+  return (Changed ? llvm::PreservedAnalyses::none()
+                  : llvm::PreservedAnalyses::all());
+}

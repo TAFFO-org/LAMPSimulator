@@ -1,7 +1,9 @@
 #ifndef LAMP_SIMULATOR_H
 #define LAMP_SIMULATOR_H
 
-#include "llvm/Pass.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/IR/IRBuilder.h"
@@ -9,7 +11,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueMap.h"
@@ -32,18 +33,45 @@ llvm::cl::opt<int> SimDivMantissaSize("div-mant", llvm::cl::value_desc("bits"),
 
 namespace lamp {
 
-class LAMPSimulator : public llvm::FunctionPass {
+struct LAMPSimulator : public llvm::PassInfoMixin<LAMPSimulator> {
   int simulatedMantissaSize(llvm::Instruction& I);
   void visit(llvm::Instruction& I);
-  
-public:
+  bool runOnFunction(llvm::Function &F);
+  llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
+};
+
+struct LegacyLAMPSimulator : public llvm::FunctionPass {
   static char ID;
-  
-  LAMPSimulator() : FunctionPass(ID) {};
-  
-  bool runOnFunction(llvm::Function &F) override;
+
+  LegacyLAMPSimulator() : FunctionPass(ID) {};
+
+  bool runOnFunction(llvm::Function &F) override {
+    bool Changed = Impl.runOnFunction(F);
+    return Changed;
+  }
+
+  LAMPSimulator Impl;
 };
 
 } // namespace lamp
+using namespace llvm;
+
+extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo()
+{
+  return {
+          LLVM_PLUGIN_API_VERSION,
+          "Taffo",
+          "0.3",
+          [](PassBuilder &PB) {
+            PB.registerPipelineParsingCallback(
+                    [](StringRef Name, FunctionPassManager &PM, ArrayRef<PassBuilder::PipelineElement>) {
+                      if (Name == "lampsim") {
+                        PM.addPass(lamp::LAMPSimulator());
+                        return true;
+                      }
+                      return false;
+                    });
+          }};
+}
 
 #endif
